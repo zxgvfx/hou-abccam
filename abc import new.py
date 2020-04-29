@@ -41,7 +41,8 @@ class ImportABC:
 #-------------------------------------------------   
     def getCamList(self):
         if self.turn:
-            camlist = self.camPath[hou.ui.selectFromList(self.camList,title = 'Select Camera Node')[0]] 
+            index = hou.ui.selectFromList(self.camList,title = 'Select Camera Node')
+            camlist = [self.camPath[i] for i in index] 
             return camlist
     
     def BuildHierarchyRoot(self): 
@@ -62,7 +63,7 @@ class ABC_Work():
     def __init__(self,abcPath,abcFile):
         self.abcFile = hou.hscriptStringExpression(abcFile)
         self.abcPath = abcPath
-        self.name = _AbcModule.alembicGetSceneHierarchy(self.abcFile,abcPath)[0]
+        self.name = [ _AbcModule.alembicGetSceneHierarchy(self.abcFile,i)[0] for i in abcPath] 
         self.houCamParmName = (
                         'aperture',
                         'aspect',
@@ -82,36 +83,37 @@ class ABC_Work():
         self.camRes = []
         self.filmaspectratio = []
         
-    def getXfrom(self):
+    def getXfrom(self,cam):
         tr = []
         rot = []
         scl = []
         for t in range(int(self.abcRange[0]*hou.fps()),int(self.abcRange[1]*hou.fps())+1):
-            xfrom = _AbcModule.getWorldXform(self.abcFile,self.abcPath,t/hou.fps())[0]
+            xfrom = _AbcModule.getWorldXform(self.abcFile,cam,t/hou.fps())[0]
             xf = hou.Matrix4(xfrom)
             tr.append(xf.extractTranslates())
             rot.append(xf.extractRotates())
             scl.append(xf.extractScales())
         return tr,rot,scl
     def createCam(self):
-        camNode = hou.node('/obj').createNode('cam',self.name)
-        self.setCamView()
-        hasRes = self.getCamRes()
-        t,r,s = self.getXfrom()
-        self.setKey(t,camNode,'t')
-        self.setKey(r,camNode,'r')
-        self.setKey(s,camNode,'s')
-        camNode.parmTuple('t').lock((1,1,1))
-        camNode.parmTuple('r').lock((1,1,1))
-        camNode.parmTuple('s').lock((1,1,1))
-        for str in self.houCamParmName:
-            hs = "self.setKey(self.{},camNode,'{}')".format(str,str)
-            exec(hs)
-        if hasRes:
-            self.setKey(self.camRes,camNode,'res')
-        else :
-            camNode.parm('resx').set(2048)
-            camNode.parm('resy').set(int(2048/self.filmaspectratio[0]))
+        for cam in self.abcPath:
+            camNode = hou.node('/obj').createNode('cam',self.name[self.abcPath.index(cam)])
+            self.setCamView(cam)
+            hasRes = self.getCamRes(cam)
+            t,r,s = self.getXfrom(cam)
+            self.setKey(t,camNode,'t')
+            self.setKey(r,camNode,'r')
+            self.setKey(s,camNode,'s')
+            camNode.parmTuple('t').lock((1,1,1))
+            camNode.parmTuple('r').lock((1,1,1))
+            camNode.parmTuple('s').lock((1,1,1))
+            for str in self.houCamParmName:
+                hs = "self.setKey(self.{},camNode,'{}')".format(str,str)
+                exec(hs)
+            if hasRes:
+                self.setKey(self.camRes,camNode,'res')
+            else :
+                camNode.parm('resx').set(2048)
+                camNode.parm('resy').set(int(2048/self.filmaspectratio[0]))
 
     def setKey(self,key,node,parm):
         J = ['x','y','z','w']
@@ -124,7 +126,6 @@ class ABC_Work():
                 numKEY = len(k)
                 #print '帧数{}，值{}'.format(frame+1 , k)
                 if numKEY>1:
-                    
                     for aix,keyIndex in enumerate(k):
                         slope = np.convolve(map(lambda x:x[1],keyNp),s,mode='same') / (len(s) - 1)
                         if slope[frame]!=0:
@@ -137,25 +138,23 @@ class ABC_Work():
                     keyframe = hou.Keyframe(k,hou.frameToTime(frame))
                     node.parm('{}'.format(parm)).setKeyframe(keyframe)
             
-    def setCamView(self):
+    def setCamView(self,cam):
         
         for t in range(int(self.abcRange[0]*hou.fps()),int(self.abcRange[1]*hou.fps())+1):
-            cameraDict = _abc.alembicGetCameraDict(self.abcFile,self.abcPath,t/hou.fps())
+            cameraDict = _abc.alembicGetCameraDict(self.abcFile,cam,t/hou.fps())
             self.filmaspectratio.append(cameraDict['filmaspectratio'])
             if cameraDict != None:
                 for parmName in self.houCamParmName:
                     exec("self.{}.append({})".format(parmName,cameraDict.get(parmName)))
-    def getCamRes(self):
+    def getCamRes(self,cam):
         for t in range(int(self.abcRange[0]*hou.fps()),int(self.abcRange[1]*hou.fps())+1):
-            resTuple = _AbcModule.alembicGetCameraResolution(self.abcFile,self.abcPath,t)
+            resTuple = _AbcModule.alembicGetCameraResolution(self.abcFile,cam,t)
             if resTuple != None:
                 self.camRes.append(self.camRes)
                 return True         
                     
-                    
-                
+                                 
                 
 abcFile = selFile()
 abcPath = ImportABC(abcFile).getCamList()
-
 ABC_Work(abcPath,abcFile).createCam()
