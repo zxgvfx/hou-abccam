@@ -16,8 +16,8 @@ class ImportABC:
         self.file = seletFile
         if len(self.file)>0:
             self.filePath = hou.hscriptStringExpression(self.file)
-            self.turn = self.BuildHierarchyRoot()
-            if self.turn:
+            self.true = self.BuildHierarchyRoot()
+            if self.true:
                 self.abcTreeAll = _AbcModule.alembicGetSceneHierarchy(self.filePath,'')
                 self.abcTreePath = _AbcModule.alembicGetObjectPathListForMenu(self.filePath)
                 self.getABCCamTree(self.abcTreeAll)
@@ -40,7 +40,7 @@ class ImportABC:
                 self.getABCCamTree(children)
 #-------------------------------------------------   
     def getCamList(self):
-        if self.turn:
+        if self.true:
             index = hou.ui.selectFromList(self.camList,title = 'Select Camera Node')
             camlist = [self.camPath[i] for i in index] 
             return camlist
