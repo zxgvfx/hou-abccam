@@ -20,13 +20,13 @@ class ImportABC:
             if self.true:
                 self.abcTreeAll = _AbcModule.alembicGetSceneHierarchy(self.filePath,'')
                 self.abcTreePath = _AbcModule.alembicGetObjectPathListForMenu(self.filePath)
-                self.getABCCamTree(self.abcTreeAll)
+                self.getABCCamTree()
 
 #-------------------------------------------------
-    def getABCCamTree(self,abcTreeAll):
-        nodeName = abcTreeAll[0]
-        nodeType = abcTreeAll[1]
-        nodeChildren = abcTreeAll[2]
+    def getABCCamTree(self):
+        nodeName = self.abcTreeAll[0]
+        nodeType = self.abcTreeAll[1]
+        nodeChildren = self.abcTreeAll[2]
         if nodeType == 'camera':
             self.camList.append(nodeName) 
             for x in self.abcTreePath:
